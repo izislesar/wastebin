@@ -1,0 +1,22 @@
+# laptop selfhost, manual runs only
+# usage: docker compose -f selfhost/docker-compose.yml up -d
+# scratch-based image, ~10mb ram. no shell inside — debug from outside.
+
+services:
+  wastebin:
+    image: quxfoo/wastebin:latest
+    container_name: wastebin
+    restart: "no"
+    user: "10001:10001"
+    environment:
+      - WASTEBIN_DATABASE_PATH=/data/state.db
+      - WASTEBIN_ADDRESS_PORT=0.0.0.0:8088
+    volumes:
+      - wastebin-data:/data
+    ports:
+      - "${WASTEBIN_PORT:-8083}:8088"
+    # no healthcheck: scratch image has no wget/curl. liveness via port check.
+
+volumes:
+  wastebin-data:
+    name: wastebin-data
