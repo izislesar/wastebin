@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wastebin
+  labels:
+    app: wastebin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wastebin
+  strategy:
+    type: Recreate # sqlite on a single pvc, no rolling
+  template:
+    metadata:
+      labels:
+        app: wastebin
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: wastebin
+          image: quxfoo/wastebin:latest
+          ports:
+            - containerPort: 8088
+          env:
+            - name: WASTEBIN_DATABASE_PATH
+              value: /data/state.db
+            - name: WASTEBIN_ADDRESS_PORT
+              value: 0.0.0.0:8088
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8088
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8088
+            periodSeconds: 30
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: wastebin-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wastebin-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wastebin
+spec:
+  selector:
+    app: wastebin
+  ports:
+    - port: 80
+      targetPort: 8088
